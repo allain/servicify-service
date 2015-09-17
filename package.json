@@ -1,0 +1,32 @@
+{
+  "name": "servicify-service",
+  "version": "0.1.0",
+  "description": "Package that makes available an npm package available as a webservice.",
+  "main": "index.js",
+  "scripts": {
+    "test": "blue-tape test/*.js",
+    "lint": "jshint --config .jshintrc index.js test/*.js"
+  },
+  "keywords": [
+    "semver",
+    "registry",
+    "webservice"
+  ],
+  "author": "Allain Lalonde <allain.lalonde@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "bluebird": "^2.10.0",
+    "debug": "^2.2.0",
+    "defined": "^1.0.0",
+    "get-parameter-names": "^0.2.0",
+    "get-port": "^1.0.0",
+    "node-json-rpc": "0.0.1",
+    "package-path": "0.0.1",
+    "uniqid": "^1.0.0"
+  },
+  "devDependencies": {
+    "async-identity": "^1.0.0",
+    "blue-tape": "^0.1.10",
+    "servicify-server": "^0.1.0"
+  }
+}
