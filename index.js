@@ -12,8 +12,8 @@ function ServicifyService(opts) {
   if (!(this instanceof ServicifyService)) return new ServicifyService(opts);
   this.opts = opts = opts || {};
 
-  var host = defined(this.opts.host, '127.0.0.1');
-  var port = defined(this.opts.port, 2020);
+  var host = this.opts.host = this.opts.host || '127.0.0.1';
+  var port = this.opts.port = this.opts.port || 2020;
 
   debug('using servicify-server at %s:%d', host, port);
 
@@ -102,6 +102,10 @@ ServicifyService.prototype.register = function(target, spec) {
         host: registration.host,
         port: registration.port,
         name: registration.name,
+        server: {
+          host: self.opts.host,
+          port: self.opts.port
+        },
         version: registration.version,
         stop: function () {
           clearInterval(heartbeatIntervalid);

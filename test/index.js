@@ -20,6 +20,7 @@ test('supports registering a function as a service', function (t) {
     return ps.register(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
       t.ok(service.host);
       t.ok(service.port);
+      t.deepEqual(service.server, {host: '127.0.0.1', port: 2020});
       return service.stop();
     }).then(function () {
       return server.stop();
