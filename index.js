@@ -29,7 +29,11 @@ ServicifyService.prototype.register = function(target, spec) {
   var self = this;
 
   if (typeof target === 'string') {
+    if (target.match(/^[.]/)) { // relative path
+      return Promise.reject(new Error('Relative paths are not supported for registration targets'));
+    }
     var packageMain = require.resolve(target);
+
     if (!packageMain) return Promise.reject(new Error('unable to find required version of ' + target));
 
     var pkgPath = packagePath.sync(packageMain);

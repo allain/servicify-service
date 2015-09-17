@@ -28,7 +28,7 @@ test('supports registering a function as a service', function (t) {
   });
 });
 
-test('supports registering a package', function (t) {
+test('supports registering a package by name', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
 
@@ -37,6 +37,31 @@ test('supports registering a package', function (t) {
       t.ok(service.port);
       return service.stop();
     }).then(function () {
+      return server.stop();
+    });
+  });
+});
+
+test('supports registering a package by its absolute directory', function (t) {
+  return withServer().then(function (server) {
+    var ps = new ServicifyService();
+
+    return ps.register(__dirname + '/../node_modules/async-identity').then(function (service) {
+      t.ok(service.host);
+      t.ok(service.port);
+      return service.stop();
+    }).then(function () {
+      return server.stop();
+    });
+  });
+});
+
+test('rejects registering a package by its relative directory', function (t) {
+  return withServer().then(function (server) {
+    var ps = new ServicifyService();
+
+    return ps.register('../node_modules/async-identity').catch(function (err) {
+      t.ok(err);
       return server.stop();
     });
   });
