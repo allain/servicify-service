@@ -17,7 +17,7 @@ test('supports registering a function as a service', function (t) {
     var ps = new ServicifyService();
     var identity = require('async-identity');
 
-    return ps.register(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
+    return ps.offer(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
       t.ok(service.host);
       t.ok(service.port);
       t.deepEqual(service.server, {host: '127.0.0.1', port: 2020});
@@ -32,7 +32,7 @@ test('supports registering a package by name', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
 
-    return ps.register('async-identity').then(function (service) {
+    return ps.offer('async-identity').then(function (service) {
       t.ok(service.host);
       t.ok(service.port);
       return service.stop();
@@ -46,7 +46,7 @@ test('supports registering a package by its absolute directory', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
 
-    return ps.register(__dirname + '/../node_modules/async-identity').then(function (service) {
+    return ps.offer(__dirname + '/../node_modules/async-identity').then(function (service) {
       t.ok(service.host);
       t.ok(service.port);
       return service.stop();
@@ -60,7 +60,7 @@ test('rejects registering a package by its relative directory', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
 
-    return ps.register('../node_modules/async-identity').catch(function (err) {
+    return ps.offer('../node_modules/async-identity').catch(function (err) {
       t.ok(err);
       return server.stop();
     });
@@ -72,7 +72,7 @@ test('exposes function through rpc', function (t) {
     var ps = new ServicifyService();
     var identity = require('async-identity');
 
-    return ps.register(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
+    return ps.offer(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
       var client = new rpc.Client({
         host: service.host,
         port: service.port,

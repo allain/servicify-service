@@ -22,11 +22,12 @@
     "get-port": "^1.0.0",
     "node-json-rpc": "0.0.1",
     "package-path": "0.0.1",
+    "servicify-server": "^0.2.0",
     "uniqid": "^1.0.0"
   },
   "devDependencies": {
     "async-identity": "^1.0.0",
     "blue-tape": "^0.1.10",
-    "servicify-server": "^0.1.0"
+    "servicify-server": "^0.2.0"
   }
 }

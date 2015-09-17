@@ -10,10 +10,11 @@ var getParamNames = require('get-parameter-names');
 
 function ServicifyService(opts) {
   if (!(this instanceof ServicifyService)) return new ServicifyService(opts);
-  this.opts = opts = opts || {};
+  this.opts = opts || {};
 
   var host = this.opts.host = this.opts.host || '127.0.0.1';
   var port = this.opts.port = this.opts.port || 2020;
+  this.opts.heartbeat = this.opts.heartbeat || 10000;
 
   debug('using servicify-server at %s:%d', host, port);
 
@@ -25,7 +26,7 @@ function ServicifyService(opts) {
   });
 }
 
-ServicifyService.prototype.register = function(target, spec) {
+ServicifyService.prototype.offer = function(target, spec) {
   var self = this;
 
   if (typeof target === 'string') {
@@ -50,8 +51,6 @@ ServicifyService.prototype.register = function(target, spec) {
 
     target = require(target);
   }
-
-
 
   var host = defined(spec.host, '127.0.0.1');
   var port = spec.port ? Promise.resolve(spec.port) : Promise.fromNode(getPort);
@@ -81,8 +80,6 @@ ServicifyService.prototype.register = function(target, spec) {
       strict: true
     });
 
-
-
     server.addMethod('invoke', function (args, cb) {
       if (targetType === 'callback') {
         args.push(cb);
@@ -99,34 +96,47 @@ ServicifyService.prototype.register = function(target, spec) {
     return Promise.fromNode(function (cb) {
       server.start(cb);
     }).then(function () {
-      return callRpc(self.serverConnection, 'register', [serviceSpec]);
-    }).then(function(registration) {
-      debug('target registered as %j', registration);
+      return sendOffer(serviceSpec);
+    }).then(function(offering) {
+      debug('target offered as %j', offering);
       var heartbeatIntervalid = setInterval(function () {
-        callRpc(self.serverConnection, 'heartbeat', [registration.id]).then(function(result) {
+        sendOffer(offering).then(function(result) {
           debug('heartbeat result: %j', result);
         });
-      }, defined(self.opts.heartbeat, 10000));
+      }, self.opts.heartbeat);
 
       return {
-        host: registration.host,
-        port: registration.port,
-        name: registration.name,
+        host: offering.host,
+        port: offering.port,
+        name: offering.name,
         server: {
           host: self.opts.host,
           port: self.opts.port
         },
-        version: registration.version,
+        version: offering.version,
         stop: function () {
           clearInterval(heartbeatIntervalid);
-          return Promise.fromNode(function (cb) {
-            server.stop(cb);
+          debug('rescending offer');
+
+          return callRpc(self.serverConnection, 'rescind', [offering.id]).then(function(result) {
+            debug('rescind result: %j', result);
+          }).then(function() {
+            return Promise.fromNode(function (cb) {
+              server.stop(cb);
+            });
           });
         }
       };
     });
   });
+
+  function sendOffer(offering) {
+    offering.expires = Date.now() + self.opts.heartbeat * 3;
+    return callRpc(self.serverConnection, 'offer', [offering]);
+  }
 };
+
+
 
 function callRpc(client, method, params) {
   return Promise.fromNode(function(cb) {
