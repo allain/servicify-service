@@ -1,6 +1,6 @@
 {
   "name": "servicify-service",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Package that makes available an npm package available as a webservice.",
   "main": "index.js",
   "scripts": {
