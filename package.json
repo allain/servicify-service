@@ -29,6 +29,6 @@
   "devDependencies": {
     "async-identity": "^1.0.0",
     "blue-tape": "^0.1.10",
-    "servicify-server": "^0.2.0"
+    "servicify-server": "^0.2.3"
   }
 }
