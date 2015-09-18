@@ -110,7 +110,7 @@ test('invocations affects load between heartbeats', function (t) {
         callRpc(client, 'invoke', [1]),
         callRpc(client, 'invoke', [2]),
         callRpc(client, 'invoke', [3])
-      ]).then(function (results) {
+      ]).then(function () {
         return Promise.delay(5);
       }).then(function () {
         t.ok(startLoad < service.load, startLoad + ' load < ' + service.load + ' load');
