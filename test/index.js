@@ -30,6 +30,23 @@ test('returned service has expected API', function (t) {
   });
 });
 
+test('supports registering a function that returns promises', function(t) {
+  return withServer().then(function(server) {
+    var ps = new ServicifyService();
+    var identity = function(x) { return Promise.resolve(x); }
+
+    return ps.offer(identity, {name: 'identity', version: '1.0.0'}).then(function (service) {
+      t.equal(typeof service.invoke, 'function', 'has invoke function');
+      return service.invoke([10]).then(function(result) {
+        t.equal(result, 10);
+        return service.stop();
+      }).then(function () {
+        return server.stop();
+      });
+    });
+  })
+});
+
 test('supports registering a package by name', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
