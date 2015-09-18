@@ -5,22 +5,24 @@ var getPort = require('get-port');
 var defined = require('defined');
 var uniqid = require('uniqid');
 var packagePath = require('package-path');
+var defaults = require('defaults');
 
 var getParamNames = require('get-parameter-names');
 
 function ServicifyService(opts) {
   if (!(this instanceof ServicifyService)) return new ServicifyService(opts);
-  this.opts = opts || {};
 
-  var host = this.opts.host = this.opts.host || '127.0.0.1';
-  var port = this.opts.port = this.opts.port || 2020;
-  this.opts.heartbeat = this.opts.heartbeat || 10000;
+  this.opts = opts = defaults(opts, {
+    host: '127.0.0.1',
+    port: 2020,
+    heartbeat: 10000
+  });
 
-  debug('using servicify-server at %s:%d', host, port);
+  debug('using servicify-server at %s:%d', opts.host, opts.port);
 
   this.serverConnection = new rpc.Client({
-    host: host,
-    port: port,
+    host: opts.host,
+    port: opts.port,
     path: '/servicify',
     strict: true
   });
@@ -57,6 +59,10 @@ ServicifyService.prototype.offer = function(target, spec) {
 
   debug('exposing %s@%s at %s:%d', spec.name, spec.version, host, port);
 
+  var service;
+  var invocations = 0;
+  var lastOffering;
+
   return port.then(function(port) {
     var targetType;
     if (typeof target === 'function') {
@@ -68,10 +74,17 @@ ServicifyService.prototype.offer = function(target, spec) {
         targetType = 'promised';
       }
     } else {
-      throw new Error('unsupported target');
+      throw new Error('unsupported target type');
     }
 
-    var serviceSpec = {name: spec.name, version: spec.version, host: host, port: port, type: targetType};
+    var serviceSpec = {
+      name: spec.name,
+      version: spec.version,
+      host: host,
+      port: port,
+      type: targetType,
+      load: 0
+    };
 
     var server = new rpc.Server({
       port: port,
@@ -80,17 +93,28 @@ ServicifyService.prototype.offer = function(target, spec) {
       strict: true
     });
 
-    server.addMethod('invoke', function (args, cb) {
-      if (targetType === 'callback') {
-        args.push(cb);
-      }
+    function invoke(args) {
+      return new Promise(function(resolve, reject) {
+        invocations++;
 
-      var result = target.apply(null, args);
-      if (result && result.then && typeof result.then === 'function') {
-        result.nodeify(cb);
-      } else if (!usesCallback) {
-        cb(new Error('target must be asynchronous'));
-      }
+        if (targetType === 'callback') {
+          args.push(function(err, result) {
+            if (err) return reject(err);
+            resolve(result);
+          });
+        }
+
+        var result = target.apply(null, args);
+        if (result && result.then && typeof result.then === 'function') {
+          result.then(resolve, reject);
+        } else if (!usesCallback) {
+          reject(new Error('target must be asynchronous'));
+        }
+      });
+    }
+
+    server.addMethod('invoke', function(args, cb) {
+      invoke(args).nodeify(cb);
     });
 
     return Promise.fromNode(function (cb) {
@@ -105,7 +129,8 @@ ServicifyService.prototype.offer = function(target, spec) {
         });
       }, self.opts.heartbeat);
 
-      return {
+      service = {
+        load: 0,
         host: offering.host,
         port: offering.port,
         name: offering.name,
@@ -114,9 +139,10 @@ ServicifyService.prototype.offer = function(target, spec) {
           port: self.opts.port
         },
         version: offering.version,
+        invoke: invoke,
         stop: function () {
           clearInterval(heartbeatIntervalid);
-          debug('rescending offer');
+          debug('rescinding offer');
 
           return callRpc(self.serverConnection, 'rescind', [offering.id]).then(function(result) {
             debug('rescind result: %j', result);
@@ -127,16 +153,24 @@ ServicifyService.prototype.offer = function(target, spec) {
           });
         }
       };
+
+      return service;
     });
   });
 
   function sendOffer(offering) {
+    offering.load = invocations ? Math.round(invocations / ((Date.now() - lastOffering) / 1000)) : 0;
+    if (service) {
+      service.load = offering.load;
+    }
+    lastOffering = Date.now();
+    invocations = 0;
+
     offering.expires = Date.now() + self.opts.heartbeat * 3;
+
     return callRpc(self.serverConnection, 'offer', [offering]);
   }
 };
-
-
 
 function callRpc(client, method, params) {
   return Promise.fromNode(function(cb) {

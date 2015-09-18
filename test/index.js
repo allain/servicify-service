@@ -12,15 +12,17 @@ test('can be created without a server to connect to yet', function (t) {
   t.end();
 });
 
-test('supports registering a function as a service', function (t) {
+test('returned service has expected API', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
     var identity = require('async-identity');
 
     return ps.offer(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
-      t.ok(service.host);
-      t.ok(service.port);
-      t.deepEqual(service.server, {host: '127.0.0.1', port: 2020});
+      t.ok(service.host, 'has host');
+      t.ok(service.port, 'has port');
+      t.equal(service.load, 0, '0 load');
+      t.equal(typeof service.invoke, 'function', 'has invoke function');
+      t.deepEqual(service.server, {host: '127.0.0.1', port: 2020}, 'has server location');
       return service.stop();
     }).then(function () {
       return server.stop();
@@ -33,8 +35,8 @@ test('supports registering a package by name', function (t) {
     var ps = new ServicifyService();
 
     return ps.offer('async-identity').then(function (service) {
-      t.ok(service.host);
-      t.ok(service.port);
+      t.ok(service.host, 'has host');
+      t.ok(service.port, 'has port');
       return service.stop();
     }).then(function () {
       return server.stop();
@@ -82,6 +84,39 @@ test('exposes function through rpc', function (t) {
 
       return callRpc(client, 'invoke', [10]).then(function (result) {
         t.equal(result, 10);
+        return service.stop();
+      }).then(function () {
+        return server.stop();
+      });
+    });
+  });
+});
+
+test('invocations affects load between heartbeats', function (t) {
+  return withServer().then(function (server) {
+    var ps = new ServicifyService({heartbeat: 10});
+    var identity = require('async-identity');
+
+    return ps.offer(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
+      var client = new rpc.Client({
+        host: service.host,
+        port: service.port,
+        path: '/porty',
+        strict: true
+      });
+      var startLoad = service.load;
+
+      return Promise.all([
+        callRpc(client, 'invoke', [1]),
+        callRpc(client, 'invoke', [2]),
+        callRpc(client, 'invoke', [3])
+      ]).then(function (results) {
+        return Promise.delay(5);
+      }).then(function () {
+        t.ok(startLoad < service.load, startLoad + ' load < ' + service.load + ' load');
+        return Promise.delay(10);
+      }).then(function () {
+        t.equal(service.load, 0);
         return service.stop();
       }).then(function () {
         return server.stop();
