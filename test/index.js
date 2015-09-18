@@ -86,12 +86,35 @@ test('rejects registering a package by its relative directory', function (t) {
   });
 });
 
-test('exposes function through rpc', function (t) {
+test('exposes async-callback function through rpc', function (t) {
   return withServer().then(function (server) {
     var ps = new ServicifyService();
     var identity = require('async-identity');
 
     return ps.offer(identity, {name: 'async-identity', version: '1.0.0'}).then(function (service) {
+      var client = new rpc.Client({
+        host: service.host,
+        port: service.port,
+        path: '/porty',
+        strict: true
+      });
+
+      return callRpc(client, 'invoke', [10]).then(function (result) {
+        t.equal(result, 10);
+        return service.stop();
+      }).then(function () {
+        return server.stop();
+      });
+    });
+  });
+});
+
+test('exposes async-promise function through rpc', function (t) {
+  return withServer().then(function (server) {
+    var ps = new ServicifyService();
+    var identity = function(x) { return Promise.resolve(x); }
+
+    return ps.offer(identity, {name: 'identity', version: '1.0.0'}).then(function (service) {
       var client = new rpc.Client({
         host: service.host,
         port: service.port,
